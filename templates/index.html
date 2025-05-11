@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Eligibility Predictor</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .card {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-4xl font-bold text-white text-center mb-8">LoanLens</h1>
+
+        <!-- Model Performance -->
+        <div class="card">
+            <h2 class="text-2xl font-semibold mb-4">Model Performance</h2>
+            <p class="text-lg">Accuracy: <span class="font-bold">{{ "%.2f" % (accuracy * 100) }}%</span></p>
+            <h3 class="text-xl font-medium mt-4">Classification Report</h3>
+            <table class="w-full mt-2 border-collapse">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border p-2">Metric</th>
+                        <th class="border p-2">Not Eligible (0)</th>
+                        <th class="border p-2">Eligible (1)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border p-2">Precision</td>
+                        <td class="border p-2">{{ "%.2f" % class_report['0']['precision'] }}</td>
+                        <td class="border p-2">{{ "%.2f" % class_report['1']['precision'] }}</td>
+                    </tr>
+                    <tr>
+                        <td class="border p-2">Recall</td>
+                        <td class="border p-2">{{ "%.2f" % class_report['0']['recall'] }}</td>
+                        <td class="border p-2">{{ "%.2f" % class_report['1']['recall'] }}</td>
+                    </tr>
+                    <tr>
+                        <td class="border p-2">F1-Score</td>
+                        <td class="border p-2">{{ "%.2f" % class_report['0']['f1-score'] }}</td>
+                        <td class="border p-2">{{ "%.2f" % class_report['1']['f1-score'] }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Test Data Upload -->
+        <div class="card">
+            <h2 class="text-2xl font-semibold mb-4">Upload Test Data (CSV)</h2>
+            {% if error %}
+                <p class="text-red-500 mb-4">{{ error }}</p>
+            {% endif %}
+            <form action="/predict_test" method="POST" enctype="multipart/form-data" class="mb-6">
+                <input type="file" name="test_file" accept=".csv" class="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100 mb-4">
+                <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition">Predict Test Data</button>
+            </form>
+
+            <!-- Test Data Results -->
+            {% if results %}
+                <h3 class="text-xl font-medium mb-4">Test Data Predictions</h3>
+                <div class="table-container">
+                    <table class="w-full border-collapse">
+                        <thead>
+                            <tr class="bg-gray-200 sticky top-0">
+                                <th class="border p-2">Loan ID</th>
+                                <th class="border p-2">Prediction</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in results %}
+                                <tr>
+                                    <td class="border p-2">{{ result.Loan_ID }}</td>
+                                    <td class="border p-2 {{ 'text-green-600' if result.Prediction == 'Eligible' else 'text-red-600' }}">{{ result.Prediction }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Single Applicant Prediction -->
+        <div class="card">
+            <h2 class="text-2xl font-semibold mb-4">Single Applicant Prediction</h2>
+            {% if single_error %}
+                <p class="text-red-500 mb-4">{{ single_error }}</p>
+            {% endif %}
+            {% if single_result %}
+                <p class="text-lg mb-4">Prediction: <span class="font-bold {{ 'text-green-600' if single_result == 'Eligible' else 'text-red-600' }}">{{ single_result }}</span></p>
+            {% endif %}
+            <form action="/predict_single" method="POST" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium">Gender</label>
+                        <select name="gender" class="w-full p-2 border rounded">
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Married</label>
+                        <select name="married" class="w-full p-2 border rounded">
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Dependents</label>
+                        <select name="dependents" class="w-full p-2 border rounded">
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3+">3+</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Education</label>
+                        <select name="education" class="w-full p-2 border rounded">
+                            <option value="Graduate">Graduate</option>
+                            <option value="Not Graduate">Not Graduate</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Self Employed</label>
+                        <select name="self_employed" class="w-full p-2 border rounded">
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Credit History</label>
+                        <select name="credit_history" class="w-full p-2 border rounded">
+                            <option value="1.0">Yes (1.0)</option>
+                            <option value="0.0">No (0.0)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Property Area</label>
+                        <select name="property_area" class="w-full p-2 border rounded">
+                            <option value="Urban">Urban</option>
+                            <option value="Semiurban">Semiurban</option>
+                            <option value="Rural">Rural</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Applicant Income</label>
+                        <input type="number" name="applicant_income" class="w-full p-2 border rounded" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Coapplicant Income</label>
+                        <input type="number" name="coapplicant_income" class="w-full p-2 border rounded" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Loan Amount</label>
+                        <input type="number" name="loan_amount" class="w-full p-2 border rounded" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">Loan Amount Term</label>
+                        <input type="number" name="loan_amount_term" class="w-full p-2 border rounded" required>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition">Predict Single Applicant</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+</html>
